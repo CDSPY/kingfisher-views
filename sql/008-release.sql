@@ -29,6 +29,49 @@ create unique index tmp_release_party_aggregates_id on tmp_release_party_aggrega
 
 ----
 
+--- Adding planning document counts by document_type
+
+drop table if exists tmp_planning_documents_aggregates;
+create table tmp_planning_documents_aggregates
+AS
+select 
+    id, 
+    jsonb_object_agg(coalesce(documentType, ''), documentType_count) planning_documentType_counts
+from
+    (select 
+        id, documentType, count(*) documentType_count
+    from
+        planning_documents_summary
+    group by
+        id, documentType
+    ) AS d
+group by id;
+
+create unique index tmp_planning_documents_aggregates_id on tmp_planning_documents_aggregates(id);
+-- end of adding planning document counts
+
+--- Adding tender document counts by document_type
+
+drop table if exists tmp_tender_documents_aggregates;
+create table tmp_tender_documents_aggregates
+AS
+select 
+    id, 
+    jsonb_object_agg(coalesce(documentType, ''), documentType_count) tender_documentType_counts
+from
+    (select 
+        id, documentType, count(*) documentType_count
+    from
+        tender_documents_summary
+    group by
+        id, documentType
+    ) AS d
+group by id;
+
+create unique index tmp_tender_documents_aggregates_id on tmp_tender_documents_aggregates(id);
+-- end of adding tender document counts
+
+
 drop table if exists tmp_release_awards_aggregates;
 
 create table tmp_release_awards_aggregates
@@ -81,8 +124,6 @@ from
 group by id;
 
 create unique index tmp_award_documents_aggregates_id on tmp_award_documents_aggregates(id);
-
-
 
 drop table if exists tmp_release_contracts_aggregates;
 
@@ -262,6 +303,18 @@ left join
     tmp_release_party_aggregates
 using(id)
 left join
+    (select id, documents_count AS total_planning_documents from planning_summary) AS planning_summary
+using(id) 
+left join
+    tmp_planning_documents_aggregates
+using(id)
+left join
+    (select id, documents_count AS total_tender_documents from tender_summary) AS tender_summary
+using(id)
+left join
+    tmp_tender_documents_aggregates
+using(id)
+left join
     tmp_release_awards_aggregates
 using(id)
 left join
@@ -298,6 +351,8 @@ drop table if exists tmp_release_party_aggregates;
 drop table if exists tmp_release_awards_aggregates;
 drop table if exists tmp_release_award_suppliers_aggregates;
 drop table if exists tmp_award_documents_aggregates;
+drop table if exists tmp_tender_documents_aggregates;
+drop table if exists tmp_planning_documents_aggregates;
 drop table if exists tmp_release_contracts_aggregates;
 drop table if exists tmp_contract_documents_aggregates;
 drop table if exists tmp_contract_implementation_documents_aggregates;
